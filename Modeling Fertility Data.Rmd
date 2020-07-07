@@ -1,0 +1,100 @@
+---
+title: "Modeling Fertility Data"
+author: "Junru Zhang"
+date: "06/07/2020"
+output: pdf_document
+---
+## Loading and Cleaning the Data
+
+``` {r}
+fijiFile = 'fijiDownload.RData' 
+load(fijiFile)
+```
+
+```{r message=FALSE}
+# get rid of newly married women and those with missing literacy status
+fijiSub = fiji[fiji$monthsSinceM > 0 & !is.na(fiji$literacy),] 
+fijiSub$logYears = log(fijiSub$monthsSinceM/12) 
+fijiSub$ageMarried = relevel(fijiSub$ageMarried, '15to18') 
+fijiSub$urban = relevel(fijiSub$residence, 'rural')
+```
+
+## Fitting Generalized Linear Models
+```{r message=False}
+fijiRes = glm(
+children ~ offset(logYears) + ageMarried + ethnicity + literacy + urban,
+family=poisson(link=log), data=fijiSub)
+logRateMat = cbind(est=fijiRes$coef, confint(fijiRes, level=0.99)) 
+knitr::kable(cbind(
+  summary(fijiRes)$coef,
+  exp(logRateMat)), 
+digits=3)
+```
+
+```{r}
+fijiSub$marriedEarly = fijiSub$ageMarried == '0to15' 
+fijiRes2 = glm(
+children ~ offset(logYears) + marriedEarly + ethnicity + urban, 
+ family=poisson(link=log), data=fijiSub)
+logRateMat2 = cbind(est=fijiRes2$coef, confint(fijiRes2, level=0.99)) 
+knitr::kable(cbind(
+     summary(fijiRes2)$coef,
+     exp(logRateMat2)), 
+  digits=3)
+```
+
+## Explaining the fijiRes Model 
+$$
+\begin{aligned}
+Y_i &\sim Poisson(O_i\mu_i)
+\end{aligned}
+\text{ with link function  } log(\mu_i)=X_i\beta
+$$
+
+where the response $Y_i$ is the number of children born of the individual i after marriage, and covariates $X_i$ include: 
+$X_{i1},...,X_{i6}:$ 
+the range of age when married of the individual i, = 1 if married in the range 0to15, 18to20, 20to22, 22to25, 25to30, 30+ **respectively**,  = 0 otherwise, 
+
+$X_{i7},...,X_{i13}:$ 
+the ethnic group that individual i belongs to, = 1 if individual i is Indian, European, part European, pacific Islander, Rotuman, Chinese, other, **respectively**, otherwise = 0,
+
+$X_{i14}:$ 
+whether the individual i is literate or not,  = 1 if not literate, and = 0 if literate, 
+
+$X_{i15}:$ the residence area of the individual i, = 1 if living in the capital city of Suva and = 0 otherwise,
+
+$X_{i16}:$ the residence area of the individual i,  = 1 if living in urban area and = 0 otherwise.
+
+$O_i$ is the number of years since married. $(Offset\ terms)$
+
+$\mu_i$ is the rate of children born per year. 
+
+Note: since the response variable is the number of children of each individual after marriage, this is a counting process. Thus it makes sense that the response variable follows a **poisson distribution**. And we think that age when married, ethnic group, being literiate or not, area of residence and number of months since married are all factors that affect the outcome, which is the number of children born. 
+
+## Likelihood Ratio Test
+```{r}
+lmtest::lrtest(fijiRes2, fijiRes)
+```
+
+Likelyhood ratio test can only compare nested models. Although it might look like fijiRes2 does not have the MarriedEarly covaraite, which fijiRes has, in fact it does. The MarriedEarly factor in fijiRes evaluates to TRUE if age married is in the range of 0to15, and it evaluates to FLASE if age married is not in the range of 0to15. On the other hand, the ageMarried factor in fijiRes2 has a covariate that evaluates to 1 if age married is in the range of 0to15, and 0 otherwise. So essentially, fijiRes2 contain all covariates included in fijiRes and hence they are nested models.
+
+The constraints on the regression coefficients are that **the coefficents ageMarried18to20, ageMarried20to22, ageMarried22to25, ageMarried25to30, ageMarried30toInf, and literacy are all at the same level ** in the restricted model, fijiRes.
+
+## Using Data to Verify Hypothesises
+### Hypothesis 1 
+Improving girls’ education and delaying marriage will result in women choosing to have fewer children and increase the age gaps between their children 
+
+This hypothesis is **not acceptable**.
+
+First of all, the LRT suggests adding the literacy term isn't helping explain the data significantly better (p-value= 0.3834 >0.05). Therefore we can conclude that there is no evidence that improving education would affect how many children women choose to have. This is then inconsistent with the hypothesis.
+
+Considering the estimates from fijiRes for the levels of age married, none of the later ages married have a significantly different rate of having children from the 15to18 group (1 in all the CIs equivalent here to p-value>0.05), which is not consistent with a "delayed marriage effect". We can also see this from the LR test as the simpler version of the variable appears to work just as well as the version with more levels, also supporting this idea of no meaningful differences across these groups.
+
+Also, in fijiRes2, we observe that the MarriedEarly coefficient has an odds ratio ("est") of 0.873 and a 95% confidence of (0.832,	0.916). We interpret this as, holding all other covariates constant, getting married before age 15 results in having fewer children (between 8 and 17% lower) than getting married after the age of 15. This is consistent with women married before 15 not being fertile in the early years of their marriage.
+
+### Hypothesis 2
+Contraception was not widely available in Fiji in 1974 and as a result there was no way for married women to influence their birth intervals.
+
+This hypothesis is acceptable.
+
+Our results seem consistent with the idea that contraception wasn't widely available in Fiji, as neither being better educated (literate) nor marrying later seemed to explain the rate at which women were having children. Education and delayed marriage won't readily influence the rate of having children if the mechanisms to control getting pregnant, e.g. contraception, aren't available to anyone. 
