@@ -95,6 +95,6 @@ Also, in fijiRes2, we observe that the MarriedEarly coefficient has an odds rati
 ### Hypothesis 2
 Contraception was not widely available in Fiji in 1974 and as a result there was no way for married women to influence their birth intervals.
 
-This hypothesis is acceptable.
+This hypothesis is **acceptable**.
 
 Our results seem consistent with the idea that contraception wasn't widely available in Fiji, as neither being better educated (literate) nor marrying later seemed to explain the rate at which women were having children. Education and delayed marriage won't readily influence the rate of having children if the mechanisms to control getting pregnant, e.g. contraception, aren't available to anyone. 
